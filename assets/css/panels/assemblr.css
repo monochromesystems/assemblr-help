@@ -1,0 +1,27 @@
+/* Assemblr for InDesign's panel (panel/assemblr/*.njk, src/_lib/assemblr-panel.js), after Assemblr for Photoshop's
+   (assemblr-photoshop.css, which this panel `uses`): what only the InDesign panel draws (catalague-producer
+   src/ui/house.css, src/assemblr/ui/shell.html): each image tile's file type under its picture, a disconnected
+   product's dimmed row, an overlay's line with its ×, the dashed buttons that bring new artwork in, and the corner
+   picker's held corner. */
+
+/* An image's tile: its picture, and under it its file type, as the strip's caption. */
+.as-thumb img { inset: 7% 16% 24%; width: 68%; height: 69%; }
+.as-ext { position: absolute; right: 0; bottom: 3px; left: 0; font-size: 9px; font-weight: 600; letter-spacing: 0.04em; line-height: 1; text-align: center; color: #888; }
+.as-thumb.is-off .as-ext { color: #bbb; }
+
+/* A disconnected product: its strip dimmed, taking nothing. */
+.ap-product.as-off .ap-strip { opacity: 0.45; }
+.ap-prow .pt-tag { flex: none; }
+
+/* What is on a corner, or in the document's list: a line each, its × at the end. */
+.as-entry { padding: 3px 0 4px; border-bottom: 1px solid #eee; font-size: 12.5px; }
+.as-entry > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Load badge… and Load price…: dashed, as the strip's + tile, as they bring new files in. */
+.as-import { gap: 6px; border-style: dashed; border-color: #b5b5b5; }
+.as-import > span { font-size: 13px; color: #666; }
+
+/* Corner's picker: the open corner lit, a corner holding overlays its box filled. */
+.pt-corners .as-held::after { background: #333; }
+
+/* Products: the tags' mark in the gap before them, clear of the count. */
+.ap-prow > .pt-in:nth-child(2) > .pt-mark { top: 50%; left: -27px; margin-top: -9.5px; }
