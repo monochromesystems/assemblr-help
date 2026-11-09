@@ -145,6 +145,10 @@ function initGlobalNav() {
 
 // A photo turned by --turn (main.css) grows by --cover: just enough that, turned about its middle, it still covers its
 // box. Its box is the photo's own (each is placed over the whole of its container), so it is worked out again on resize.
+// One given a centre (data-centre, a point of the photo in its own fractions, before it is turned) is placed instead:
+// sized to the photo, just big enough turned to cover its container and then --zoom times that, and moved so that point
+// sits in the container's middle, as far as the photo's edges allow (--x, --y, --w, --h). Its `sizes` follows, so the
+// browser loads a file as wide as the photo is drawn.
 function initPhotos() {
   const photos = document.querySelectorAll("img[data-turn]");
   if (!photos.length) return;
@@ -155,8 +159,40 @@ function initPhotos() {
     const c = Math.abs(Math.cos(a)), s = Math.abs(Math.sin(a));
     img.style.setProperty("--cover", Math.max(c + (h / w) * s, (w / h) * s + c).toFixed(4));
   };
-  const observer = new ResizeObserver((entries) => entries.forEach((entry) => fit(entry.target)));
-  photos.forEach((img) => observer.observe(img));
+  const place = (img) => {
+    const w = img.parentElement.clientWidth, h = img.parentElement.clientHeight;
+    if (!w || !h) return;
+    const style = getComputedStyle(img);
+    const t = (parseFloat(style.getPropertyValue("--turn")) * Math.PI) / 180;
+    const cos = Math.cos(t), sin = Math.sin(t), c = Math.abs(cos), s = Math.abs(sin);
+    const ratio = img.getAttribute("width") / img.getAttribute("height");
+    const zoom = Math.max(1, parseFloat(style.getPropertyValue("--zoom")) || 1);
+    // Half the container measured along the photo's own sides, and the photo's width that covers it.
+    const ex = (c * w + s * h) / 2, ey = (s * w + c * h) / 2;
+    const pw = Math.max(2 * ex, 2 * ey * ratio) * zoom, ph = pw / ratio;
+    // The centre from the photo's middle, held in so the container stays covered.
+    const [fx, fy] = img.dataset.centre.split(/\s+/).map((v) => parseFloat(v) / 100);
+    const hold = (v, most) => Math.max(-most, Math.min(most, v));
+    const qx = hold((fx - 0.5) * pw, pw / 2 - ex), qy = hold((fy - 0.5) * ph, ph / 2 - ey);
+    // The photo's middle, so that the centre, turned with it, lands on the container's.
+    const mx = w / 2 - (qx * cos - qy * sin), my = h / 2 - (qx * sin + qy * cos);
+    const px = (v) => `${v.toFixed(1)}px`;
+    img.style.setProperty("--x", px(mx - pw / 2));
+    img.style.setProperty("--y", px(my - ph / 2));
+    img.style.setProperty("--w", px(pw));
+    img.style.setProperty("--h", px(ph));
+    img.style.setProperty("--cover", "1");
+    img.sizes = `${Math.ceil(pw)}px`;
+  };
+  const centred = new Map();
+  const observer = new ResizeObserver((entries) =>
+    entries.forEach((entry) => (centred.has(entry.target) ? place(centred.get(entry.target)) : fit(entry.target))));
+  photos.forEach((img) => {
+    if (img.dataset.centre) {
+      centred.set(img.parentElement, img);
+      observer.observe(img.parentElement);
+    } else observer.observe(img);
+  });
 }
 
 /* Galleries --------------------------------------------------------------- */
@@ -443,6 +479,41 @@ function initLiveJobs() {
 
 /* Dashboards (Studio Tools) ------------------------------------------------ */
 
+// A dashboard's widgets, each a link to its entry beside the window (partials/dashboard.njk): rolling over one, or a click, shows that entry
+// and hides the others, the widget outlined; the first widget's is shown to begin with. Without script every entry
+// shows and each tile jumps to its own.
+function initDashboardDetails() {
+  for (const root of document.querySelectorAll(".sd")) {
+    const details = [...root.querySelectorAll("[data-detail]")];
+    const links = [...root.querySelectorAll(".sd-window a.widget")];
+    if (!details.length || !links.length) continue;
+    const show = (id) => {
+      details.forEach((d) => { d.hidden = d.id !== id; });
+      links.forEach((a) => {
+        const on = a.getAttribute("href") === `#${id}`;
+        a.classList.toggle("is-active", on);
+        a.toggleAttribute("aria-current", on);
+      });
+    };
+    for (const a of links) {
+      // Rolling over a widget (or tabbing to it) shows its entry; it stays until another is picked, so moving the
+      // pointer off the window to read it does not lose it. A tap or click still opens it, for touch.
+      const open = () => { const id = a.getAttribute("href").slice(1); if (details.some((d) => d.id === id)) show(id); };
+      a.addEventListener("pointerenter", (e) => { if (e.pointerType === "mouse" || e.pointerType === "pen") open(); });
+      a.addEventListener("focus", open);
+      a.addEventListener("click", (e) => {
+        const id = a.getAttribute("href").slice(1);
+        if (!details.some((d) => d.id === id)) return;
+        e.preventDefault();
+        show(id);
+      });
+    }
+    // A link to a widget's entry (#widget-template) opens on it; otherwise the first widget's.
+    const wanted = location.hash.slice(1);
+    show(details.some((d) => d.id === wanted) ? wanted : links[0].getAttribute("href").slice(1));
+  }
+}
+
 // The dots that drift behind the Creatives card, as the plugin paints them (monocode.campaign-manager
 // bloom/src/ui/overviewHero.js _startOvDots and _paintOvDots, src/ui/shared/math.js _valueNoise2D): a cloud thickest
 // towards the bottom right, each dot a point, a ring, a cross or a stroke by the noise under it, grey or one of the
@@ -528,4 +599,5 @@ initDemos();
 initPanelTours();
 initLiveJobs();
 initDashboards();
+initDashboardDetails();
 initReveal();
